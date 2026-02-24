@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Chouteur - HTML</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+<canvas id="game" width="1000" height="580"></canvas>
+
+<script>
+const WIDTH = 1000;
+const HEIGHT = 580;
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let keys = {};
+let mouse = { x: 0, y: 0, down: false };
+
+const images = {};
+const imageSources = {
+  bg: 'PygameAssets-main/bg.jpg',
+  banner: 'PygameAssets-main/banner.png',
+  button: 'PygameAssets-main/button.png',
+  player: 'PygameAssets-main/player.png',
+  mummy: 'PygameAssets-main/mummy.png',
+  projectile: 'PygameAssets-main/projectile.png',
+  comet: 'PygameAssets-main/comet.png'
+};
+
+let assetsLoaded = 0;
+const totalAssets = Object.keys(imageSources).length;
+
+for (const key in imageSources) {
+  const img = new Image();
+  img.src = imageSources[key];
+  img.onload = () => {
+    assetsLoaded++;
+  };
+  images[key] = img;
+}
+
+class Projectile {
+  constructor(player) {
+    this.player = player;
+    this.speed = 10;
+    this.width = 40;
+    this.height = 10;
+    this.x = player.x + player.width - 10;
+    this.y = player.y + player.height / 3;
+  }
+
+  update(game) {
+    this.x += this.speed;
+
+    for (let m of game.monsters) {
+      if (this.collidesWith(m)) {
+        m.damage(game.player.attack);
+        this.dead = true;
+        break;
+      }
+    }
+
+    if (this.x > WIDTH) this.dead = true;
+  }
+
+  collidesWith(monster) {
+    return (
+      this.x < monster.x + monster.width &&
+      this.x + this.width > monster.x &&
+      this.y < monster.y + monster.height &&
+      this.y + this.height > monster.y
+    );
+  }
+
+  draw(ctx) {
+    if (images.projectile.complete) {
+      ctx.drawImage(images.projectile, this.x, this.y, this.width, this.height);
+    } else {
+      ctx.fillStyle = 'yellow';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
+}
+
+class Player {
+  constructor(game) {
+    this.game = game;
+    this.maxHealth = 100;
+    this.health = 100;
+    this.attack = 10;
+    this.speed = 5;
+    this.width = 80;
+    this.height = 80;
+    this.x = 200;
+    this.y = 460;
+    this.projectiles = [];
+  }
+
+  damage(amount) {
+    this.health -= amount;
+    if (this.health <= 0) {
+      this.game.gameOver();
+    }
+  }
+
+  launch() {
+    this.projectiles.push(new Projectile(this));
+  }
+
+  update() {
+    if (keys['KeyD'] && this.x + this.width < WIDTH) {
+      this.x += this.speed;
+    }
+    if (keys['KeyQ'] && this.x > 0) {
+      this.x -= this.speed;
+    }
+
+    this.projectiles.forEach(p => p.update(this.game));
+    this.projectiles = this.projectiles.filter(p => !p.dead);
+  }
+
+  draw(ctx) {
+    if (images.player.complete) {
+      ctx.drawImage(images.player, this.x, this.y, this.width, this.height);
+    } else {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+
+    ctx.fillStyle = '#3c3f3c';
+    ctx.fillRect(this.x + 30, this.y - 10, this.maxHealth, 5);
+    ctx.fillStyle = '#6fd22e';
+    ctx.fillRect(this.x + 30, this.y - 10, Math.max(0, this.health), 5);
+
+    this.projectiles.forEach(p => p.draw(ctx));
+  }
+}
+
+class Monster {
+  constructor(game) {
+    this.game = game;
+    this.maxHealth = 100;
+    this.health = 100;
+    this.attack = 10;
+    this.speed = 1 + Math.random() * 2;
+    this.width = 80;
+    this.height = 80;
+    this.x = WIDTH + Math.random() * 300;
+    this.y = 460;
+  }
+
+  damage(amount) {
+    this.health -= amount;
+    if (this.health <= 0) {
+      this.dead = true;
+    }
+  }
+
+  update() {
+    this.x -= this.speed;
+
+    if (this.collidesWith(this.game.player)) {
+      this.game.player.damage(this.attack);
+    }
+
+    if (this.x < -200) {
+      this.x = WIDTH + Math.random() * 300;
+      this.health = this.maxHealth;
+    }
+  }
+
+  collidesWith(player) {
+    return (
+      this.x < player.x + player.width &&
+      this.x + this.width > player.x &&
+      this.y < player.y + player.height &&
+      this.y + this.height > player.y
+    );
+  }
+
+  draw(ctx) {
+    if (images.mummy.complete) {
+      ctx.drawImage(images.mummy, this.x, this.y, this.width, this.height);
+    } else {
+      ctx.fillStyle = 'red';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+
+    ctx.fillStyle = '#3c3f3c';
+    ctx.fillRect(this.x + 10, this.y - 10, this.maxHealth, 5);
+    ctx.fillStyle = '#6fd22e';
+    ctx.fillRect(this.x + 10, this.y - 10, Math.max(0, this.health), 5);
+  }
+}
+
+class Comet {
+  constructor(event) {
+    this.event = event;
+    this.speed = 5;
+    this.width = 60;
+    this.height = 60;
+    this.x = 20 + Math.random() * (WIDTH - 40);
+    this.y = -50;
+  }
+
+  update() {
+    this.y += this.speed;
+
+    if (this.collidesWith(this.event.game.player)) {
+      this.event.game.player.damage(20);
+      this.dead = true;
+    }
+
+    if (this.y >= HEIGHT) {
+      this.dead = true;
+      if (this.event.comets.filter(c => !c.dead).length === 0) {
+        this.event.resetPercent();
+      }
+    }
+  }
+
+  collidesWith(player) {
+    return (
+      this.x < player.x + player.width &&
+      this.x + this.width > player.x &&
+      this.y < player.y + player.height &&
+      this.y + this.height > player.y
+    );
+  }
+
+  draw(ctx) {
+    if (images.comet.complete) {
+      ctx.drawImage(images.comet, this.x, this.y, this.width, this.height);
+    } else {
+      ctx.fillStyle = 'orange';
+      ctx.beginPath();
+      ctx.arc(this.x + 30, this.y + 30, 30, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+class CometEvent {
+  constructor(game) {
+    this.game = game;
+    this.percent = 0;
+    this.percentSpeed = 50;
+    this.comets = [];
+    this.fallMode = false;
+  }
+
+  meteorFall() {
+    this.comets.push(new Comet(this));
+  }
+
+  isFullLoaded() {
+    return this.percent >= 100;
+  }
+
+  resetPercent() {
+    this.percent = 0;
+  }
+
+  attemptFall() {
+    if (this.isFullLoaded() && this.game.monsters.length > 0) {
+      this.meteorFall();
+      this.resetPercent();
+      this.fallMode = true;
+    }
+  }
+
+  addPercent() {
+    if (this.percent < 100) {
+      this.percent += this.percentSpeed / 100;
+    }
+  }
+
+  update() {
+    this.addPercent();
+    this.attemptFall();
+
+    this.comets.forEach(c => c.update());
+    this.comets = this.comets.filter(c => !c.dead);
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, HEIGHT - 10, WIDTH, 7);
+    ctx.fillStyle = '#0000ff';
+    ctx.fillRect(0, HEIGHT - 10, (WIDTH / 100) * this.percent, 7);
+
+    this.comets.forEach(c => c.draw(ctx));
+  }
+}
+
+class Game {
+  constructor() {
+    this.isPlaying = false;
+    this.player = new Player(this);
+    this.monsters = [];
+    this.cometEvent = new CometEvent(this);
+  }
+
+  start() {
+    this.isPlaying = true;
+    this.monsters = [];
+    const count = 1 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      this.spawnMonster();
+    }
+  }
+
+  spawnMonster() {
+    this.monsters.push(new Monster(this));
+  }
+
+  gameOver() {
+    this.monsters = [];
+    this.cometEvent.comets = [];
+    this.player.health = this.player.maxHealth;
+    this.player.x = 200;
+    this.isPlaying = false;
+  }
+
+  update() {
+    if (!this.isPlaying) return;
+
+    this.player.update();
+    this.monsters.forEach(m => m.update());
+    this.monsters = this.monsters.filter(m => !m.dead);
+
+    if (this.monsters.length === 0) {
+      this.spawnMonster();
+    }
+
+    this.cometEvent.update();
+  }
+
+  draw(ctx) {
+    if (images.bg.complete) {
+      ctx.drawImage(images.bg, 0, -300, WIDTH, HEIGHT + 300);
+    } else {
+      ctx.fillStyle = '#222';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+
+    if (this.isPlaying) {
+      this.player.draw(ctx);
+      this.monsters.forEach(m => m.draw(ctx));
+      this.cometEvent.draw(ctx);
+    } else {
+      if (images.banner.complete) {
+        const bw = 500, bh = 500;
+        const bx = Math.ceil(WIDTH / 4);
+        const by = 40;
+        ctx.drawImage(images.banner, bx, by, bw, bh);
+      }
+
+      if (images.button.complete) {
+        const bw = 400, bh = 150;
+        const bx = Math.ceil(WIDTH / 3.33);
+        const by = Math.ceil(HEIGHT / 1.4);
+        ctx.drawImage(images.button, bx, by, bw, bh);
+        this.buttonRect = { x: bx, y: by, w: bw, h: bh };
+      } else {
+        const bw = 400, bh = 150;
+        const bx = Math.ceil(WIDTH / 3.33);
+        const by = Math.ceil(HEIGHT / 1.4);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px sans-serif';
+        ctx.fillText('PLAY', bx + 150, by + 90);
+        this.buttonRect = { x: bx, y: by, w: bw, h: bh };
+      }
+    }
+  }
+}
+
+const game = new Game();
+
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space' && game.isPlaying) {
+    game.player.launch();
+  }
+});
+
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+});
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if (!game.isPlaying && game.buttonRect) {
+    const b = game.buttonRect;
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+      game.start();
+    }
+  }
+});
+
+function loop() {
+  if (assetsLoaded < totalAssets) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px sans-serif';
+    ctx.fillText('Chargement...', 420, 290);
+  } else {
+    game.update();
+    game.draw(ctx);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
