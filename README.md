@@ -15,22 +15,22 @@ Le jeu utilise un `<canvas>` pour afficher :
 ## 🖼️ Aperçu du jeu
 
 ### Écran d’accueil
-![Accueil](PygameAssets-main/banner.png)
+![Accueil](Jeu/PygameAssets-main/banner.png)
 
 ### Gameplay
-![Gameplay](PygameAssets-main/bg.jpg)
+![Gameplay](Jeu/PygameAssets-main/bg.jpg)
 
 ### Joueur
-![Player](PygameAssets-main/player.png)
+![Player](Jeu/PygameAssets-main/player.png)
 
 ### Ennemi
 ![Monster](PygameAssets-main/mummy.png)
 
 ### Projectile
-![Projectile](PygameAssets-main/projectile.png)
+![Projectile](Jeu/PygameAssets-main/projectile.png)
 
 ### Comète
-![Comet](PygameAssets-main/comet.png)
+![Comet](Jeu/PygameAssets-main/comet.png)
 
 ---
 
