@@ -24,7 +24,7 @@ Le jeu utilise un `<canvas>` pour afficher :
 ![Player](Jeu/PygameAssets-main/player.png)
 
 ### Ennemi
-![Monster](PygameAssets-main/mummy.png)
+![Monster](Jeu/PygameAssets-main/mummy.png)
 
 ### Projectile
 ![Projectile](Jeu/PygameAssets-main/projectile.png)
